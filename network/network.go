@@ -24,7 +24,9 @@ func NewServer() *Network {
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut},
 		AllowCredentials: true,
 	}))
-
+	r := NewRoom()
+	go r.RunInit()
+	n.engine.GET("/room", r.SocketServe)
 	return n
 }
 
