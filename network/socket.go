@@ -82,7 +82,7 @@ func (c *client) Write() {
 	}
 }
 
-func (r *Room) RunInit() {
+func (r *Room) Run() {
 	// room에 있는 모든 채널값들을 받는 역할
 	for {
 		select {
