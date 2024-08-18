@@ -20,7 +20,7 @@ func main() {
 		panic(err)
 	} else {
 
-		s := network.NewServer(service.NewService(rep), rep, *port)
+		s := network.NewServer(service.NewService(rep), *port)
 		s.StartServer()
 	}
 

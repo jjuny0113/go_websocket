@@ -5,24 +5,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
-	"websocket_chatting/repository"
 	"websocket_chatting/service"
 )
 
 type Server struct {
-	engine     *gin.Engine
-	service    *service.Service
-	repository *repository.Repository
-	port       string
-	ip         string
+	engine  *gin.Engine
+	service *service.Service
+
+	port string
+	ip   string
 }
 
-func NewServer(service *service.Service, repository *repository.Repository, port string) *Server {
+func NewServer(service *service.Service, port string) *Server {
 	s := &Server{
-		engine:     gin.New(),
-		service:    service,
-		repository: repository,
-		port:       port,
+		engine:  gin.New(),
+		service: service,
+
+		port: port,
 	}
 
 	s.engine.Use(gin.Logger())

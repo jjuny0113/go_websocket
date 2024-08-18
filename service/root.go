@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"websocket_chatting/repository"
 	"websocket_chatting/types/schema"
@@ -52,4 +54,19 @@ func (s *Service) Room(name string) (*schema.Room, error) {
 	}
 
 	return res, nil
+}
+
+func (s *Service) InsertChatting(user, message, roomName string) error {
+	if s == nil || s.repository == nil {
+		return errors.New("service or repository is nil")
+	}
+
+	err := s.repository.InsertChatting(user, message, roomName)
+	if err != nil {
+		log.Printf("Failed to insert chatting: user=%s, room=%s, error=%v", user, roomName, err)
+		return fmt.Errorf("failed to insert chatting: %w", err)
+	}
+
+	log.Printf("Successfully inserted chatting: user=%s, room=%s", user, roomName)
+	return nil
 }

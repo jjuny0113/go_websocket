@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"websocket_chatting/service"
 	"websocket_chatting/types"
 )
 
@@ -13,15 +14,13 @@ import (
 var upgrader = &websocket.Upgrader{
 	ReadBufferSize:  types.MessageBufferSize,
 	WriteBufferSize: types.SocketBufferSize,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
 }
 
 type message struct {
-	Name    string
-	Message string
-	Time    int64
+	Name    string    `json:"name"`
+	Message string    `json:"message"`
+	Room    string    `json:"room"`
+	When    time.Time `json:"when"`
 }
 
 type Room struct {
@@ -33,21 +32,24 @@ type Room struct {
 	Join    chan *client     // Socket 연결되는 경우에 작동
 	Leave   chan *client     // Socket 끊어지는 경우에 작동
 	Clients map[*client]bool // 현재 방에 있는 client 정보를 저장
+
+	service *service.Service
 }
 
 type client struct {
-	Send   chan *message
-	Room   *Room
-	Name   string
-	Socket *websocket.Conn
+	Send   chan *message   `json:"send"`
+	Room   *Room           `json:"room"`
+	Name   string          `json:"name"`
+	Socket *websocket.Conn `json:"socket"`
 }
 
-func NewRoom() *Room {
+func NewRoom(service *service.Service) *Room {
 	return &Room{
 		Forward: make(chan *message),
 		Join:    make(chan *client),
 		Leave:   make(chan *client),
 		Clients: make(map[*client]bool),
+		service: service,
 	}
 }
 
@@ -55,29 +57,23 @@ func (c *client) Read() {
 	// 클라이언트의 들어오는 메시지를 읽는 함수
 	defer c.Socket.Close()
 	for {
-		var msg message
+		var msg *message
 		err := c.Socket.ReadJSON(&msg)
 		if err != nil {
-			if !websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				break
-			}
-			panic(err)
 			return
 		}
-		log.Println("HEAD : ", msg, "client", c.Name)
-		msg.Time = time.Now().Unix()
+
+		msg.When = time.Now()
 		msg.Name = c.Name
-		c.Room.Forward <- &msg
+		c.Room.Forward <- msg
 	}
 }
 func (c *client) Write() {
-	// 클라이언트의 메시지를 전송하는 함수
 	defer c.Socket.Close()
 	for msg := range c.Send {
-		log.Println("HEAD : ", msg, "client", c.Name)
 		err := c.Socket.WriteJSON(msg)
 		if err != nil {
-			panic(err)
+			return
 		}
 	}
 }
@@ -93,6 +89,7 @@ func (r *Room) Run() {
 			close(client.Send)
 			delete(r.Clients, client)
 		case msg := <-r.Forward:
+			go r.service.InsertChatting(msg.Name, msg.Message, msg.Room)
 			for client := range r.Clients {
 				client.Send <- msg
 			}
@@ -100,16 +97,20 @@ func (r *Room) Run() {
 	}
 }
 
-func (r *Room) SocketServe(c *gin.Context) {
-
+func (r *Room) ServeHttp(c *gin.Context) {
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		return true
+	}
 	socket, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		panic(err)
+		log.Fatal("---- serveHTTP:", err)
+		return
 	}
 
 	userCookie, err := c.Request.Cookie("auth")
 	if err != nil {
-		panic(err)
+		log.Fatal("auth cookie is failed", err)
+		return
 	}
 	client := &client{
 		Socket: socket,

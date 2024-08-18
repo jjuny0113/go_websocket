@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
 	"strings"
 	"websocket_chatting/config"
 	"websocket_chatting/types/schema"
@@ -28,8 +29,14 @@ func NewRepository(cfg *config.Config) (*Repository, error) {
 	return r, nil
 }
 
+func (s *Repository) InsertChatting(user, message, roomName string) error {
+	log.Println("Insert Chatting Using Wss", "user", user, "message", message, "room", roomName)
+	_, err := s.db.Exec("INSERT INTO chatting.chat(room,name,message) VALUES(?,?,?)", roomName, user, message)
+	return err
+}
+
 func (s *Repository) GetChatList(roomName string) ([]*schema.Chat, error) {
-	qs := query([]string{"SELECT * FROM", chat, "WHERE room = ? ORDER BY `when` DESC LIMIT 10"})
+	qs := query([]string{"SELECT id, room, name, message, `when` FROM", chat, "WHERE room = ? ORDER BY `when` DESC LIMIT 10"})
 	cursor, err := s.db.Query(qs, roomName)
 	if err != nil {
 		return nil, err
@@ -39,11 +46,18 @@ func (s *Repository) GetChatList(roomName string) ([]*schema.Chat, error) {
 
 	for cursor.Next() {
 		d := new(schema.Chat)
-		if err = cursor.Scan(&d.Name, &d.Id, &d.Room, &d.When, &d.Message); err != nil {
+		var room string
+		if err = cursor.Scan(&d.Id, &room, &d.Name, &d.Message, &d.When); err != nil {
 			return nil, err
 		}
+		d.Room = room
 		results = append(results, d)
 	}
+
+	if err = cursor.Err(); err != nil {
+		return nil, err
+	}
+
 	if len(results) == 0 {
 		return []*schema.Chat{}, nil
 	}
