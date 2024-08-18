@@ -38,7 +38,7 @@ func NewServer(service *service.Service, repository *repository.Repository, port
 			return true
 		},
 	}))
-	registerServer(s.engine)
+	registerServer(s)
 	return s
 }
 

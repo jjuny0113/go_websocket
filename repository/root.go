@@ -74,7 +74,7 @@ func (s *Repository) RoomList() ([]*schema.Room, error) {
 }
 
 func (s *Repository) MakeRoom(name string) error {
-	_, err := s.db.Exec("INSERT INTO chatting.room VALUES (?)", name)
+	_, err := s.db.Exec("INSERT INTO chatting.room(name) VALUES (?)", name)
 	return err
 }
 
@@ -88,6 +88,10 @@ func (s *Repository) Room(name string) (*schema.Room, error) {
 	err := s.db.QueryRow(qs, name).Scan(
 		&d.ID, &d.Name, &d.CreatedAt, &d.UpdatedAt,
 	)
+
+	if err == nil {
+		return nil, nil
+	}
 
 	return d, err
 }
